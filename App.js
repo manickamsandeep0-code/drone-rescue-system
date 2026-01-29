@@ -74,10 +74,13 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const recordingAnimation = useRef(new Animated.Value(1)).current;
 
-  // Shake detection variables
-  const SHAKE_THRESHOLD = 1.5;
+  // Shake detection variables - requires strong shakes
+  const SHAKE_THRESHOLD = 2.5; // Increased from 1.5 - requires harder shake
+  const SHAKE_COUNT_THRESHOLD = 3; // Need 3 strong shakes within time window
+  const SHAKE_TIME_WINDOW = 1000; // 1 second window to detect shakes
   const subscription = useRef(null);
   const lastShakeTime = useRef(0);
+  const shakeTimestamps = useRef([]); // Track multiple shakes
 
   useEffect(() => {
     // Request notification permissions
@@ -157,13 +160,26 @@ export default function App() {
       const { x, y, z } = accelerometerData;
       const acceleration = Math.sqrt(x * x + y * y + z * z);
       
-      // Detect shake even when app is in background
+      // Only register if acceleration exceeds threshold (strong shake)
       if (acceleration > SHAKE_THRESHOLD) {
         const now = Date.now();
-        // Debounce: only trigger once every 2 seconds
-        if (now - lastShakeTime.current > 2000) {
-          lastShakeTime.current = now;
-          handleShake();
+        
+        // Add this shake timestamp
+        shakeTimestamps.current.push(now);
+        
+        // Remove old timestamps outside the time window
+        shakeTimestamps.current = shakeTimestamps.current.filter(
+          timestamp => now - timestamp < SHAKE_TIME_WINDOW
+        );
+        
+        // Check if we have enough shakes in the time window
+        if (shakeTimestamps.current.length >= SHAKE_COUNT_THRESHOLD) {
+          // Debounce: only trigger once every 3 seconds
+          if (now - lastShakeTime.current > 3000) {
+            lastShakeTime.current = now;
+            shakeTimestamps.current = []; // Reset shake count
+            handleShake();
+          }
         }
       }
     });
