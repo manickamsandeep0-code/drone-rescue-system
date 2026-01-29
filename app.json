@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Drone Rescue System",
+    "slug": "drone-rescue-system",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0E27"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to send emergency coordinates to the drone rescue system."
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "VIBRATE",
+        "FOREGROUND_SERVICE",
+        "POST_NOTIFICATIONS",
+        "WAKE_LOCK"
+      ],
+      "package": "com.sandeep1235897.dronerescuesystem"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6d28a478-f6cf-4d26-a7e2-7fbb9e44dad0"
+      }
+    }
+  }
+}
