@@ -208,6 +208,12 @@ export default function App() {
 
   // Start recording audio (hold to record)
   const startRecording = async () => {
+    // Prevent multiple recordings
+    if (isRecording || recording) {
+      console.log('⚠️ Recording already in progress');
+      return;
+    }
+
     try {
       console.log('🎤 Starting recording...');
       
@@ -256,15 +262,20 @@ export default function App() {
       console.log('🎤 Recording started');
     } catch (error) {
       console.error('❌ Failed to start recording:', error);
+      setIsRecording(false);
+      setRecording(null);
       Alert.alert('Recording Error', 'Failed to start recording. Please try again.');
     }
   };
 
   // Stop recording and process audio (release button)
   const stopRecording = async () => {
-    try {
-      if (!recording) return;
+    if (!recording) {
+      setIsRecording(false);
+      return;
+    }
 
+    try {
       console.log('🎤 Stopping recording...');
       setIsRecording(false);
 
@@ -272,14 +283,16 @@ export default function App() {
       recordingAnimation.stopAnimation();
       recordingAnimation.setValue(1);
 
-      await recording.stopAndUnloadAsync();
+      const currentRecording = recording;
+      setRecording(null); // Clear immediately to prevent re-entry
+
+      await currentRecording.stopAndUnloadAsync();
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
       });
 
-      const uri = recording.getURI();
-      setRecording(null);
+      const uri = currentRecording.getURI();
 
       if (!uri) {
         Alert.alert('Error', 'No audio recorded');
@@ -515,31 +528,15 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#0A0E27" />
       
-      {/* Header */}
+      {/* Header - Simplified */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.title}>🚁 DRONE RESCUE</Text>
-          <TouchableOpacity 
-            style={styles.settingsIcon}
-            onPress={() => setSettingsVisible(true)}
-          >
-            <Text style={styles.settingsIconText}>⚙️</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.subtitle}>Autonomous Emergency Response System</Text>
+        <Text style={styles.title}>🚁 DRONE RESCUE</Text>
         {location && (
-          <View style={styles.locationBadge}>
-            <Text style={styles.locationText}>
-              📍 {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
-            </Text>
-          </View>
-        )}
-        {serviceActive && (
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>🟢 Background Active</Text>
-          </View>
+          <Text style={styles.locationText}>
+            📍 {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+          </Text>
         )}
       </View>
 
@@ -549,54 +546,56 @@ export default function App() {
           style={[styles.button, styles.medicalButton]}
           onPress={() => sendEmergencyData('medical')}
           disabled={sending}
+          activeOpacity={0.8}
         >
           <Text style={styles.buttonIcon}>🏥</Text>
           <Text style={styles.buttonText}>MEDICAL</Text>
-          <Text style={styles.buttonText}>EMERGENCY</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.fireButton]}
           onPress={() => sendEmergencyData('fire')}
           disabled={sending}
+          activeOpacity={0.8}
         >
           <Text style={styles.buttonIcon}>🔥</Text>
           <Text style={styles.buttonText}>FIRE</Text>
-          <Text style={styles.buttonText}>DISASTER</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.patrolButton]}
           onPress={() => sendEmergencyData('patrol')}
           disabled={sending}
+          activeOpacity={0.8}
         >
           <Text style={styles.buttonIcon}>🚓</Text>
           <Text style={styles.buttonText}>PATROL</Text>
-          <Text style={styles.buttonText}>REQUEST</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Footer Info */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          💡 Shake phone to trigger emergency alert
-        </Text>
-        {sending && (
+      {/* Bottom Bar */}
+      <View style={styles.bottomBar}>
+        {sending ? (
           <View style={styles.sendingIndicator}>
             <ActivityIndicator size="small" color="#00D9FF" />
-            <Text style={styles.sendingText}>Dispatching drone...</Text>
+            <Text style={styles.sendingText}>Dispatching...</Text>
           </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.aiButton}
+            onPress={() => setVoiceAssistantVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.aiButtonText}>🤖 AI Assistant</Text>
+          </TouchableOpacity>
         )}
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => setSettingsVisible(true)}
+        >
+          <Text style={styles.settingsButtonText}>⚙️</Text>
+        </TouchableOpacity>
       </View>
-
-      {/* AI Voice Assistant Button */}
-      <TouchableOpacity
-        style={styles.aiAssistantButton}
-        onPress={() => setVoiceAssistantVisible(true)}
-      >
-        <Text style={styles.aiAssistantIcon}>🤖</Text>
-        <Text style={styles.aiAssistantText}>AI Emergency Assistant</Text>
-      </TouchableOpacity>
 
       {/* Settings Modal */}
       <Modal
@@ -807,67 +806,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0A0E27',
-    paddingTop: 60,
-    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingHorizontal: 16,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    position: 'relative',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#00D9FF',
-    marginBottom: 8,
-    letterSpacing: 2,
-  },
-  settingsIcon: {
-    position: 'absolute',
-    right: 0,
-    padding: 8,
-  },
-  settingsIconText: {
-    fontSize: 28,
-  },
-  statusBadge: {
-    backgroundColor: '#0D3B2E',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#00D9FF',
-  },
-  statusText: {
-    color: '#00D9FF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#8B93A7',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  locationBadge: {
-    backgroundColor: '#162447',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#1F4788',
+    marginBottom: 4,
   },
   locationText: {
-    color: '#00D9FF',
+    color: '#64748b',
     fontSize: 12,
-    fontWeight: '600',
   },
   loadingText: {
     color: '#8B93A7',
@@ -877,50 +831,71 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     flex: 1,
     justifyContent: 'center',
-    gap: 20,
+    gap: 16,
   },
   button: {
-    height: 140,
+    height: 100,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    borderWidth: 2,
+    flexDirection: 'row',
+    gap: 12,
+    elevation: 4,
   },
   medicalButton: {
-    backgroundColor: '#E63946',
-    borderColor: '#FF5964',
+    backgroundColor: '#dc2626',
   },
   fireButton: {
-    backgroundColor: '#F77F00',
-    borderColor: '#FF9500',
+    backgroundColor: '#ea580c',
   },
   patrolButton: {
-    backgroundColor: '#06AED5',
-    borderColor: '#00D9FF',
+    backgroundColor: '#0891b2',
   },
   buttonIcon: {
-    fontSize: 48,
-    marginBottom: 8,
+    fontSize: 36,
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    letterSpacing: 1,
   },
-  footer: {
+  bottomBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: 16,
+    gap: 12,
   },
-  footerText: {
-    color: '#8B93A7',
+  aiButton: {
+    flex: 1,
+    backgroundColor: '#7c3aed',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  aiButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  settingsButton: {
+    backgroundColor: '#1e293b',
+    padding: 14,
+    borderRadius: 12,
+  },
+  settingsButtonText: {
+    fontSize: 20,
+  },
+  sendingIndicator: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  sendingText: {
+    color: '#00D9FF',
     fontSize: 14,
-    textAlign: 'center',
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -1030,38 +1005,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   // AI Voice Assistant Styles
-  aiAssistantButton: {
-    backgroundColor: '#8b5cf6',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-    gap: 12,
-    borderWidth: 2,
-    borderColor: '#a78bfa',
-  },
-  aiAssistantIcon: {
-    fontSize: 24,
-  },
-  aiAssistantText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   aiModalContainer: {
     flex: 1,
     backgroundColor: '#0A0E27',
   },
   aiHeader: {
     backgroundColor: '#162447',
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
     borderBottomWidth: 2,
-    borderBottomColor: '#8b5cf6',
+    borderBottomColor: '#7c3aed',
   },
   aiHeaderTop: {
     flexDirection: 'row',
@@ -1069,19 +1023,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   aiTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#a78bfa',
   },
   aiCloseButton: {
-    fontSize: 28,
+    fontSize: 24,
     color: '#8B93A7',
     fontWeight: 'bold',
   },
   aiSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#94a3b8',
-    marginTop: 4,
+    marginTop: 2,
   },
   chatList: {
     flex: 1,
@@ -1091,9 +1045,9 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   chatBubble: {
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 16,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
     maxWidth: '85%',
   },
   userBubble: {
@@ -1112,16 +1066,16 @@ const styles = StyleSheet.create({
     maxWidth: '70%',
   },
   chatSender: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#cbd5e1',
     fontWeight: 'bold',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   chatText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#FFFFFF',
-    lineHeight: 24,
-    marginBottom: 6,
+    lineHeight: 22,
+    marginBottom: 4,
   },
   chatTimestamp: {
     fontSize: 11,

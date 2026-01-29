@@ -5,6 +5,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as Speech from 'expo-speech';
+import * as FileSystem from 'expo-file-system';
 import { database } from './firebaseConfig';
 import { ref, push, serverTimestamp } from 'firebase/database';
 import { GEMINI_API_KEY } from './config';
@@ -30,7 +31,7 @@ class AIVoiceAssistant {
   initializeModel() {
     try {
       this.model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
       });
 
       // Start a new chat session
@@ -38,15 +39,15 @@ class AIVoiceAssistant {
         history: [
           {
             role: 'user',
-            parts: [{ text: 'You are an Emergency Rescue Assistant. Provide immediate, calm, and concise (max 2 sentences) life-saving instructions.' }],
+            parts: [{ text: 'You are an Emergency Rescue Assistant. Provide immediate, calm, and concise life-saving instructions in plain text. Do NOT use markdown formatting like ** or #. Keep responses to 2-3 sentences.' }],
           },
           {
             role: 'model',
-            parts: [{ text: 'Understood. I will provide concise emergency instructions to help save lives.' }],
+            parts: [{ text: 'Understood. I will provide concise emergency instructions in plain text to help save lives.' }],
           },
         ],
         generationConfig: {
-          maxOutputTokens: 100, // Keep responses concise
+          maxOutputTokens: 300, // Allow fuller responses
           temperature: 0.7,
         },
       });
@@ -276,25 +277,24 @@ class AIVoiceAssistant {
       console.log('🎤 Transcribing audio:', audioUri);
 
       // Read the audio file as base64
-      const { FileSystem } = await import('expo-file-system');
       const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
       // Use Gemini to transcribe (multimodal)
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
       
       const result = await model.generateContent([
         {
           inlineData: {
-            mimeType: 'audio/mp4', // or audio/wav depending on recording format
+            mimeType: 'audio/m4a',
             data: base64Audio,
           },
         },
-        'Transcribe this audio exactly as spoken. Only return the transcribed text, nothing else.',
+        'Transcribe this audio exactly as spoken. Only return the transcribed text, nothing else. If you cannot hear anything clearly, return an empty string.',
       ]);
 
-      const transcription = result.response.text();
+      const transcription = result.response.text().trim();
       console.log('✅ Transcription:', transcription);
       return transcription;
 
