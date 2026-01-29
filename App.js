@@ -25,7 +25,24 @@ import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import { ref, set, serverTimestamp } from 'firebase/database';
 import { database } from './firebaseConfig';
-import AIVoiceAssistant from './AIVoiceAssistant';
+
+// Import AI Voice Assistant with error handling
+let AIVoiceAssistant = {
+  handleChat: async () => ({ error: 'AI not available' }),
+  transcribeAudio: async () => 'AI not available',
+  stopSpeech: async () => {},
+};
+
+try {
+  const importedAI = require('./AIVoiceAssistant').default;
+  if (importedAI) {
+    AIVoiceAssistant = importedAI;
+    console.log('✅ AI Voice Assistant loaded');
+  }
+} catch (error) {
+  console.error('❌ Failed to load AI Voice Assistant:', error);
+  Alert.alert('AI Unavailable', 'Voice assistant features will be limited');
+}
 
 // Configure notifications for foreground service
 Notifications.setNotificationHandler({
