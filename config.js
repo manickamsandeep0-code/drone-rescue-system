@@ -6,7 +6,7 @@
  * Get your key from: https://makersuite.google.com/app/apikey
  */
 
-export const GEMINI_API_KEY = 'AIzaSyD19rB-OHPAxkyUhttVwdAGPbQ__z3ZNKc';
+export const GEMINI_API_KEY = 'AIzaSyDSLGPciXIfnh0b_tFPXk16kT5mmq7nuNE';
 
 // Instructions for getting a Gemini API key:
 // 1. Visit https://makersuite.google.com/app/apikey

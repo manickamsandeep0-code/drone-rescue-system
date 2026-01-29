@@ -23,25 +23,9 @@ import * as Notifications from 'expo-notifications';
 import { Accelerometer } from 'expo-sensors';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, serverTimestamp } from 'firebase/database';
+import { ref, set, serverTimestamp } from 'firebase/database';
+import { database } from './firebaseConfig';
 import AIVoiceAssistant from './AIVoiceAssistant';
-
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyBaA-wkSsMnDz5hDpeIj9B1bFJEEiM3UOA",
-  authDomain: "drone-rescue-system.firebaseapp.com",
-  databaseURL: "https://drone-rescue-system-default-rtdb.firebaseio.com",
-  projectId: "drone-rescue-system",
-  storageBucket: "drone-rescue-system.firebasestorage.app",
-  messagingSenderId: "891859396445",
-  appId: "1:891859396445:web:10351b69776babb7f9eab4",
-  measurementId: "G-GVMMX89N5V"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
 
 // Configure notifications for foreground service
 Notifications.setNotificationHandler({
