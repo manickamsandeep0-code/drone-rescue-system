@@ -170,16 +170,10 @@ export default function App() {
 
     Accelerometer.setUpdateInterval(100);
 
-    // Initialize volume sequence manager
-    volumeSequenceManager.current = new VolumeSequenceManager(() => {
-      handleVolumeSequenceDetected();
-    });
-
     // Cleanup
     return () => {
       appStateSubscription?.remove();
       subscription.current?.remove();
-      VolumeButtonNative.stopListening();
     };
   }, []);
 
@@ -210,29 +204,6 @@ export default function App() {
       // Reset shake detection after 2 seconds
       setTimeout(() => setShakeDetected(false), 2000);
     }
-  };
-
-  const handleVolumeSequenceDetected = async () => {
-    console.log('🚨 VOLUME SEQUENCE DETECTED - AUTO DISPATCHING MEDICAL EMERGENCY');
-    
-    // Trigger haptic feedback
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    // Show notification if in background
-    if (appState.current !== 'active') {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '🚨 EMERGENCY DISPATCH!',
-          body: 'Volume sequence detected. Medical emergency dispatched!',
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.MAX,
-        },
-        trigger: null,
-      });
-    }
-    
-    // Automatically dispatch medical emergency
-    await sendEmergencyData('medical');
   };
 
   // Start recording audio (hold to record)
