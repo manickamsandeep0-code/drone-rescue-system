@@ -1,0 +1,73 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e3a8a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="drone-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="pulse-gradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="180" fill="url(#bg-gradient)"/>
+  
+  <!-- Pulse/Emergency circle -->
+  <circle cx="512" cy="512" r="280" fill="url(#pulse-gradient)" opacity="0.2"/>
+  <circle cx="512" cy="512" r="220" fill="url(#pulse-gradient)" opacity="0.3"/>
+  <circle cx="512" cy="512" r="160" fill="url(#pulse-gradient)" opacity="0.5"/>
+  
+  <!-- Drone body (center) -->
+  <ellipse cx="512" cy="512" rx="100" ry="60" fill="url(#drone-gradient)"/>
+  
+  <!-- Drone propeller arms -->
+  <!-- Top-left arm -->
+  <rect x="362" y="362" width="120" height="20" rx="10" fill="url(#drone-gradient)" transform="rotate(-45 422 372)"/>
+  <!-- Top-right arm -->
+  <rect x="542" y="362" width="120" height="20" rx="10" fill="url(#drone-gradient)" transform="rotate(45 602 372)"/>
+  <!-- Bottom-left arm -->
+  <rect x="362" y="642" width="120" height="20" rx="10" fill="url(#drone-gradient)" transform="rotate(45 422 652)"/>
+  <!-- Bottom-right arm -->
+  <rect x="542" y="642" width="120" height="20" rx="10" fill="url(#drone-gradient)" transform="rotate(-45 602 652)"/>
+  
+  <!-- Propellers -->
+  <circle cx="380" cy="380" r="50" fill="#1e293b" stroke="#60a5fa" stroke-width="4"/>
+  <circle cx="644" cy="380" r="50" fill="#1e293b" stroke="#60a5fa" stroke-width="4"/>
+  <circle cx="380" cy="644" r="50" fill="#1e293b" stroke="#60a5fa" stroke-width="4"/>
+  <circle cx="644" cy="644" r="50" fill="#1e293b" stroke="#60a5fa" stroke-width="4"/>
+  
+  <!-- Propeller blades (simple cross pattern) -->
+  <g opacity="0.6">
+    <rect x="375" y="355" width="10" height="50" rx="5" fill="#60a5fa"/>
+    <rect x="355" y="375" width="50" height="10" rx="5" fill="#60a5fa"/>
+    
+    <rect x="639" y="355" width="10" height="50" rx="5" fill="#60a5fa"/>
+    <rect x="619" y="375" width="50" height="10" rx="5" fill="#60a5fa"/>
+    
+    <rect x="375" y="619" width="10" height="50" rx="5" fill="#60a5fa"/>
+    <rect x="355" y="639" width="50" height="10" rx="5" fill="#60a5fa"/>
+    
+    <rect x="639" y="619" width="10" height="50" rx="5" fill="#60a5fa"/>
+    <rect x="619" y="639" width="50" height="10" rx="5" fill="#60a5fa"/>
+  </g>
+  
+  <!-- Emergency SOS symbol in center -->
+  <circle cx="512" cy="512" r="70" fill="#ef4444"/>
+  <text x="512" y="532" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="white" text-anchor="middle">SOS</text>
+  
+  <!-- Medical cross -->
+  <rect x="497" cy="450" width="30" height="80" rx="4" fill="white"/>
+  <rect x="472" cy="475" width="80" height="30" rx="4" fill="white"/>
+  
+  <!-- Location pin (small) -->
+  <g transform="translate(512, 620)">
+    <path d="M 0,-25 C -15,-25 -25,-15 -25,0 C -25,15 0,35 0,35 C 0,35 25,15 25,0 C 25,-15 15,-25 0,-25 Z" fill="#fbbf24" stroke="#f59e0b" stroke-width="2"/>
+    <circle cx="0" cy="0" r="8" fill="#f59e0b"/>
+  </g>
+</svg>

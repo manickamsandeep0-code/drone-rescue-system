@@ -4,11 +4,13 @@
     "slug": "drone-rescue-system",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png.svg",
     "userInterfaceStyle": "dark",
     "plugins": [
       "./plugins/withVolumeButton"
     ],
     "splash": {
+      "image": "./assets/splash-icon.png.svg",
       "resizeMode": "contain",
       "backgroundColor": "#0A0E27"
     },
