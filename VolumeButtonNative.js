@@ -1,13 +1,13 @@
 /**
  * VolumeButtonNative
- * Native module wrapper for volume button detection using react-native-keyevent
+ * Native module wrapper for volume button detection
  */
 
-import { Platform, DeviceEventEmitter } from 'react-native';
-import ReactNativeKeyEvent from 'react-native-keyevent';
+import { Platform, NativeModules, DeviceEventEmitter } from 'react-native';
+
+const { VolumeButtonListener } = NativeModules;
 
 let volumeUpListener = null;
-let onVolumeUpCallback = null;
 
 const VolumeButtonNative = {
   /**
@@ -20,22 +20,26 @@ const VolumeButtonNative = {
       return;
     }
 
-    onVolumeUpCallback = onVolumeUp;
+    if (!VolumeButtonListener) {
+      console.error('❌ VolumeButtonListener native module not found');
+      return;
+    }
 
     // Remove existing listener
     if (volumeUpListener) {
       volumeUpListener.remove();
     }
 
-    // Listen for key events
-    volumeUpListener = DeviceEventEmitter.addListener('onKeyDown', (keyEvent) => {
-      // KEYCODE_VOLUME_UP = 24
-      if (keyEvent.keyCode === 24 && onVolumeUpCallback) {
-        onVolumeUpCallback();
+    // Listen for VolumeUp events from native module
+    volumeUpListener = DeviceEventEmitter.addListener('VolumeUp', () => {
+      if (onVolumeUp) {
+        onVolumeUp();
       }
     });
 
-    console.log('✅ Volume button listener started (using react-native-keyevent)');
+    // Start native listener
+    VolumeButtonListener.startListening();
+    console.log('✅ Volume button listener started');
   },
 
   /**
@@ -49,9 +53,10 @@ const VolumeButtonNative = {
     if (volumeUpListener) {
       volumeUpListener.remove();
       volumeUpListener = null;
-      onVolumeUpCallback = null;
     }
 
+    // Stop native listener
+    VolumeButtonListener.stopListening();
     console.log('⏹️ Volume button listener stopped');
   },
 
@@ -59,7 +64,7 @@ const VolumeButtonNative = {
    * Check if native module is available
    */
   isAvailable: () => {
-    return Platform.OS === 'android' && ReactNativeKeyEvent !== undefined;
+    return Platform.OS === 'android' && VolumeButtonListener !== undefined;
   },
 };
 

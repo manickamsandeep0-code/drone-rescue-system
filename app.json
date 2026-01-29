@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "plugins": [
-      "react-native-keyevent"
+      "./plugins/withVolumeButton"
     ],
     "splash": {
       "resizeMode": "contain",
