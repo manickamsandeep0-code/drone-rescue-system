@@ -30,7 +30,7 @@ class AIVoiceAssistant {
   initializeModel() {
     try {
       this.model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-pro',
       });
 
       // Start a new chat session
