@@ -36,7 +36,8 @@
         "POST_NOTIFICATIONS",
         "WAKE_LOCK",
         "MODIFY_AUDIO_SETTINGS",
-        "BROADCAST_STICKY"
+        "BROADCAST_STICKY",
+        "RECORD_AUDIO"
       ],
       "package": "com.sandeep1235897.dronerescuesystem"
     },

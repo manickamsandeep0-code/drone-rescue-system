@@ -15,11 +15,14 @@ import {
   TextInput,
   KeyboardAvoidingView,
   FlatList,
+  Animated,
 } from 'react-native';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import { Accelerometer } from 'expo-sensors';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, serverTimestamp } from 'firebase/database';
 import VolumeButtonNative from './VolumeButtonNative';
@@ -68,6 +71,11 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
 
+  // Audio recording states
+  const [recording, setRecording] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const recordingAnimation = useRef(new Animated.Value(1)).current;
+
   // Shake detection variables
   const SHAKE_THRESHOLD = 1.5;
   const subscription = useRef(null);
@@ -81,6 +89,28 @@ export default function App() {
     (async () => {
       if (Platform.OS === 'android') {
         await Notifications.requestPermissionsAsync();
+      }
+    })();
+
+    // Request audio recording permissions and set audio mode
+    (async () => {
+      try {
+        const { status } = await Audio.requestPermissionsAsync();
+        if (status !== 'granted') {
+          console.warn('⚠️ Audio permission not granted');
+        }
+
+        // Set audio mode for iOS silent mode and recording
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+        });
+
+        console.log('✅ Audio permissions and mode configured');
+      } catch (error) {
+        console.error('❌ Error setting up audio:', error);
       }
     })();
 
@@ -240,6 +270,163 @@ export default function App() {
     setVolumeListenerActive(false);
     
     Alert.alert('Volume Listener Stopped', 'Volume button emergency trigger disabled.');
+  };
+
+  // Start recording audio (hold to record)
+  const startRecording = async () => {
+    try {
+      console.log('🎤 Starting recording...');
+      
+      // Check permissions
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Microphone permission is needed for voice input.');
+        return;
+      }
+
+      // Stop any ongoing speech before recording
+      await AIVoiceAssistant.stopSpeech();
+
+      // Configure recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      setRecording(newRecording);
+      setIsRecording(true);
+
+      // Start pulsing animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(recordingAnimation, {
+            toValue: 1.3,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(recordingAnimation, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      // Haptic feedback
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      console.log('🎤 Recording started');
+    } catch (error) {
+      console.error('❌ Failed to start recording:', error);
+      Alert.alert('Recording Error', 'Failed to start recording. Please try again.');
+    }
+  };
+
+  // Stop recording and process audio (release button)
+  const stopRecording = async () => {
+    try {
+      if (!recording) return;
+
+      console.log('🎤 Stopping recording...');
+      setIsRecording(false);
+
+      // Stop pulsing animation
+      recordingAnimation.stopAnimation();
+      recordingAnimation.setValue(1);
+
+      await recording.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const uri = recording.getURI();
+      setRecording(null);
+
+      if (!uri) {
+        Alert.alert('Error', 'No audio recorded');
+        return;
+      }
+
+      console.log('🎤 Recording stopped, URI:', uri);
+
+      // Haptic feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Transcribe and send to AI
+      await transcribeAndSend(uri);
+
+    } catch (error) {
+      console.error('❌ Failed to stop recording:', error);
+      setIsRecording(false);
+      recordingAnimation.setValue(1);
+      Alert.alert('Error', 'Failed to process recording');
+    }
+  };
+
+  // Transcribe audio and send to AI
+  const transcribeAndSend = async (audioUri) => {
+    try {
+      setAiLoading(true);
+
+      // Show transcribing message
+      setChatMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        text: '🎤 Transcribing audio...',
+        sender: 'system',
+        timestamp: new Date().toISOString(),
+      }]);
+
+      // Transcribe audio using Gemini
+      const transcribedText = await AIVoiceAssistant.transcribeAudio(audioUri);
+
+      // Remove transcribing message
+      setChatMessages(prev => prev.filter(msg => msg.sender !== 'system'));
+
+      if (!transcribedText || transcribedText.trim() === '') {
+        Alert.alert('No Speech Detected', 'Please try speaking again.');
+        setAiLoading(false);
+        return;
+      }
+
+      // Add user message to chat
+      setChatMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        text: transcribedText,
+        sender: 'user',
+        timestamp: new Date().toISOString(),
+      }]);
+
+      // Send to AI
+      const response = await AIVoiceAssistant.handleChat(
+        transcribedText,
+        (aiResponse) => {
+          setChatMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
+            text: aiResponse,
+            sender: 'assistant',
+            timestamp: new Date().toISOString(),
+          }]);
+          setAiLoading(false);
+        },
+        (error) => {
+          Alert.alert('AI Error', error);
+          setAiLoading(false);
+        }
+      );
+
+      // Clean up audio file
+      await FileSystem.deleteAsync(audioUri, { idempotent: true });
+
+    } catch (error) {
+      console.error('❌ Transcription error:', error);
+      Alert.alert('Transcription Failed', 'Could not transcribe audio. Please try typing instead.');
+      setAiLoading(false);
+    }
   };
 
   // AI Voice Assistant handler
@@ -616,11 +803,13 @@ export default function App() {
               <View
                 style={[
                   styles.chatBubble,
-                  item.sender === 'user' ? styles.userBubble : styles.aiBubble
+                  item.sender === 'user' ? styles.userBubble : 
+                  item.sender === 'system' ? styles.systemBubble : styles.aiBubble
                 ]}
               >
                 <Text style={styles.chatSender}>
-                  {item.sender === 'user' ? '👤 You' : '🤖 AI Assistant'}
+                  {item.sender === 'user' ? '👤 You' : 
+                   item.sender === 'system' ? '⚙️ System' : '🤖 AI Assistant'}
                 </Text>
                 <Text style={styles.chatText}>{item.text}</Text>
                 <Text style={styles.chatTimestamp}>
@@ -659,12 +848,33 @@ export default function App() {
               onChangeText={setChatInput}
               multiline
               maxLength={500}
-              editable={!aiLoading}
+              editable={!aiLoading && !isRecording}
             />
+            
+            {/* Microphone Button */}
+            <Animated.View
+              style={[
+                styles.aiMicButton,
+                isRecording && styles.aiMicButtonRecording,
+                { transform: [{ scale: recordingAnimation }] }
+              ]}
+            >
+              <TouchableOpacity
+                onPressIn={startRecording}
+                onPressOut={stopRecording}
+                disabled={aiLoading}
+                style={styles.aiMicButtonTouch}
+              >
+                <Text style={styles.aiMicIcon}>
+                  {isRecording ? '⏸' : '🎤'}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+
             <TouchableOpacity
-              style={[styles.aiSendButton, aiLoading && styles.aiSendButtonDisabled]}
+              style={[styles.aiSendButton, (aiLoading || isRecording) && styles.aiSendButtonDisabled]}
               onPress={handleAIChat}
-              disabled={aiLoading}
+              disabled={aiLoading || isRecording}
             >
               <Text style={styles.aiSendIcon}>➤</Text>
             </TouchableOpacity>
@@ -984,6 +1194,11 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderBottomLeftRadius: 4,
   },
+  systemBubble: {
+    backgroundColor: '#0f766e',
+    alignSelf: 'center',
+    maxWidth: '70%',
+  },
   chatSender: {
     fontSize: 12,
     color: '#cbd5e1',
@@ -1056,6 +1271,32 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     borderWidth: 1,
     borderColor: '#334155',
+  },
+  aiMicButton: {
+    backgroundColor: '#10b981',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  aiMicButtonRecording: {
+    backgroundColor: '#ef4444',
+    shadowColor: '#ef4444',
+  },
+  aiMicButtonTouch: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiMicIcon: {
+    fontSize: 24,
   },
   aiSendButton: {
     backgroundColor: '#8b5cf6',

@@ -118,8 +118,14 @@ class AIVoiceAssistant {
    */
   async speakResponse(text) {
     try {
-      // Stop any ongoing speech first
-      await Speech.stop();
+      // Check if already speaking to prevent overlap
+      const isSpeaking = await Speech.isSpeakingAsync();
+      if (isSpeaking) {
+        console.log('⚠️ Speech already in progress, stopping previous...');
+        await Speech.stop();
+        // Small delay to ensure previous speech is fully stopped
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
 
       // Speak the response with emergency-appropriate voice settings
       Speech.speak(text, {
@@ -249,6 +255,44 @@ class AIVoiceAssistant {
     } catch (error) {
       console.error('❌ Error checking speech availability:', error);
       return false;
+    }
+  }
+
+  /**
+   * Transcribe audio to text using Gemini's multimodal capabilities
+   * @param {string} audioUri - URI of the audio file
+   * @returns {Promise<string>} Transcribed text
+   */
+  async transcribeAudio(audioUri) {
+    try {
+      console.log('🎤 Transcribing audio:', audioUri);
+
+      // Read the audio file as base64
+      const { FileSystem } = await import('expo-file-system');
+      const base64Audio = await FileSystem.readAsStringAsync(audioUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Use Gemini to transcribe (multimodal)
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      
+      const result = await model.generateContent([
+        {
+          inlineData: {
+            mimeType: 'audio/mp4', // or audio/wav depending on recording format
+            data: base64Audio,
+          },
+        },
+        'Transcribe this audio exactly as spoken. Only return the transcribed text, nothing else.',
+      ]);
+
+      const transcription = result.response.text();
+      console.log('✅ Transcription:', transcription);
+      return transcription;
+
+    } catch (error) {
+      console.error('❌ Error transcribing audio:', error);
+      throw new Error('Failed to transcribe audio');
     }
   }
 }
