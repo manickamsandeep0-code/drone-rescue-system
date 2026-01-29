@@ -30,7 +30,7 @@ class AIVoiceAssistant {
   initializeModel() {
     try {
       this.model = genAI.getGenerativeModel({
-        model: 'gemini-pro',
+        model: 'gemini-1.5-flash-latest',
         systemInstruction: SYSTEM_INSTRUCTION,
       });
 
