@@ -30,13 +30,21 @@ class AIVoiceAssistant {
   initializeModel() {
     try {
       this.model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash-latest',
-        systemInstruction: SYSTEM_INSTRUCTION,
+        model: 'gemini-1.5-pro',
       });
 
       // Start a new chat session
       this.chat = this.model.startChat({
-        history: [],
+        history: [
+          {
+            role: 'user',
+            parts: [{ text: 'You are an Emergency Rescue Assistant. Provide immediate, calm, and concise (max 2 sentences) life-saving instructions.' }],
+          },
+          {
+            role: 'model',
+            parts: [{ text: 'Understood. I will provide concise emergency instructions to help save lives.' }],
+          },
+        ],
         generationConfig: {
           maxOutputTokens: 100, // Keep responses concise
           temperature: 0.7,
