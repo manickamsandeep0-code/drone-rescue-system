@@ -84,7 +84,7 @@ export default function App() {
       }
     })();
 
-    // Request location permissions and get current location
+    // Request location permissions and get current location (optimized for emergency)
     (async () => {
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
@@ -94,8 +94,9 @@ export default function App() {
           return;
         }
 
+        // Use lower accuracy for faster initial load, update in background
         let currentLocation = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
+          accuracy: Location.Accuracy.Balanced, // Faster than High accuracy
         });
         
         setLocation({
@@ -103,9 +104,20 @@ export default function App() {
           longitude: currentLocation.coords.longitude,
         });
         setLoading(false);
+
+        // Get high accuracy location in background for better precision
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        }).then(accurateLocation => {
+          setLocation({
+            latitude: accurateLocation.coords.latitude,
+            longitude: accurateLocation.coords.longitude,
+          });
+        }).catch(err => console.log('High accuracy location update failed:', err));
+
       } catch (error) {
         console.error('Error getting location:', error);
-        Alert.alert('Error', 'Failed to get location. Please check your settings.');
+        // Don't block app loading on location error - allow manual dispatch
         setLoading(false);
       }
     })();
