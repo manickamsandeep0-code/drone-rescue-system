@@ -5,6 +5,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "plugins": [
+      "./plugins/withVolumeButton"
+    ],
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#0A0E27"
@@ -25,7 +28,9 @@
         "VIBRATE",
         "FOREGROUND_SERVICE",
         "POST_NOTIFICATIONS",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "MODIFY_AUDIO_SETTINGS",
+        "BROADCAST_STICKY"
       ],
       "package": "com.sandeep1235897.dronerescuesystem"
     },

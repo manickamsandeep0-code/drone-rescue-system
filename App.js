@@ -19,6 +19,8 @@ import * as Notifications from 'expo-notifications';
 import { Accelerometer } from 'expo-sensors';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, serverTimestamp } from 'firebase/database';
+import VolumeButtonNative from './VolumeButtonNative';
+import VolumeSequenceManager from './VolumeSequenceManager';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -53,12 +55,16 @@ export default function App() {
   const [shakeDetected, setShakeDetected] = useState(false);
   const [serviceActive, setServiceActive] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [volumeListenerActive, setVolumeListenerActive] = useState(false);
   const notificationId = useRef(null);
 
   // Shake detection variables
   const SHAKE_THRESHOLD = 1.5;
   const subscription = useRef(null);
   const lastShakeTime = useRef(0);
+  
+  // Volume sequence manager
+  const volumeSequenceManager = useRef(null);
 
   useEffect(() => {
     // Request notification permissions
@@ -117,10 +123,16 @@ export default function App() {
 
     Accelerometer.setUpdateInterval(100);
 
+    // Initialize volume sequence manager
+    volumeSequenceManager.current = new VolumeSequenceManager(() => {
+      handleVolumeSequenceDetected();
+    });
+
     // Cleanup
     return () => {
       appStateSubscription?.remove();
       subscription.current?.remove();
+      VolumeButtonNative.stopListening();
     };
   }, []);
 
@@ -151,6 +163,61 @@ export default function App() {
       // Reset shake detection after 2 seconds
       setTimeout(() => setShakeDetected(false), 2000);
     }
+  };
+
+  const handleVolumeSequenceDetected = async () => {
+    console.log('🚨 VOLUME SEQUENCE DETECTED - AUTO DISPATCHING MEDICAL EMERGENCY');
+    
+    // Trigger haptic feedback
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    // Show notification if in background
+    if (appState.current !== 'active') {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🚨 EMERGENCY DISPATCH!',
+          body: 'Volume sequence detected. Medical emergency dispatched!',
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.MAX,
+        },
+        trigger: null,
+      });
+    }
+    
+    // Automatically dispatch medical emergency
+    await sendEmergencyData('medical');
+  };
+
+  const startVolumeListener = () => {
+    if (!VolumeButtonNative.isAvailable()) {
+      Alert.alert(
+        'Feature Unavailable',
+        'Volume button detection requires a custom development build. Please rebuild the app with native modules.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    VolumeButtonNative.startListening(() => {
+      console.log('Volume Up pressed');
+      volumeSequenceManager.current?.handleVolumePress();
+    });
+
+    setVolumeListenerActive(true);
+    
+    Alert.alert(
+      '🎚️ Volume Emergency Active',
+      'Press Volume Up button 3 times within 2 seconds to auto-dispatch medical emergency.\n\nThis works even with screen off!',
+      [{ text: 'Got it!' }]
+    );
+  };
+
+  const stopVolumeListener = () => {
+    VolumeButtonNative.stopListening();
+    volumeSequenceManager.current?.reset();
+    setVolumeListenerActive(false);
+    
+    Alert.alert('Volume Listener Stopped', 'Volume button emergency trigger disabled.');
   };
 
   const startBackgroundService = async () => {
@@ -398,9 +465,31 @@ export default function App() {
               <View style={styles.settingSection}>
                 <Text style={styles.sectionTitle}>Shake Sensitivity</Text>
                 <Text style={styles.sectionDescription}>
-                  Current: Medium (recommended)\n
+                  Current: Medium (recommended){'\n'}
                   Shake your phone firmly to trigger emergency detection.
                 </Text>
+              </View>
+
+              {/* Volume Button Emergency */}
+              <View style={styles.settingSection}>
+                <Text style={styles.sectionTitle}>🎚️ Volume Button Emergency</Text>
+                <Text style={styles.sectionDescription}>
+                  {Platform.OS === 'android'
+                    ? 'Press Volume Up button 3 times within 2 seconds to automatically dispatch medical emergency. Works even with screen off!\n\nNote: Requires custom development build with native modules.'
+                    : 'Volume button detection not available on iOS.'}
+                </Text>
+                
+                {Platform.OS === 'android' && (
+                  <TouchableOpacity
+                    style={[styles.settingToggle, volumeListenerActive && styles.settingToggleActive]}
+                    onPress={volumeListenerActive ? stopVolumeListener : startVolumeListener}
+                  >
+                    <Text style={styles.settingToggleIcon}>{volumeListenerActive ? '🔴' : '⚪'}</Text>
+                    <Text style={styles.settingToggleText}>
+                      {volumeListenerActive ? 'Volume Emergency ON' : 'Enable Volume Emergency'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {/* About */}
