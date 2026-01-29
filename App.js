@@ -25,8 +25,6 @@ import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, serverTimestamp } from 'firebase/database';
-import VolumeButtonNative from './VolumeButtonNative';
-import VolumeSequenceManager from './VolumeSequenceManager';
 import AIVoiceAssistant from './AIVoiceAssistant';
 
 // Firebase configuration
@@ -62,7 +60,6 @@ export default function App() {
   const [shakeDetected, setShakeDetected] = useState(false);
   const [serviceActive, setServiceActive] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [volumeListenerActive, setVolumeListenerActive] = useState(false);
   const notificationId = useRef(null);
 
   // AI Voice Assistant states
@@ -80,9 +77,6 @@ export default function App() {
   const SHAKE_THRESHOLD = 1.5;
   const subscription = useRef(null);
   const lastShakeTime = useRef(0);
-  
-  // Volume sequence manager
-  const volumeSequenceManager = useRef(null);
 
   useEffect(() => {
     // Request notification permissions
@@ -238,38 +232,6 @@ export default function App() {
     
     // Automatically dispatch medical emergency
     await sendEmergencyData('medical');
-  };
-
-  const startVolumeListener = () => {
-    if (!VolumeButtonNative.isAvailable()) {
-      Alert.alert(
-        'Feature Unavailable',
-        'Volume button detection requires a custom development build. Please rebuild the app with native modules.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
-
-    VolumeButtonNative.startListening(() => {
-      console.log('Volume Up pressed');
-      volumeSequenceManager.current?.handleVolumePress();
-    });
-
-    setVolumeListenerActive(true);
-    
-    Alert.alert(
-      '🎚️ Volume Emergency Active',
-      'Press Volume Up button 3 times within 2 seconds to auto-dispatch medical emergency.\n\nThis works even with screen off!',
-      [{ text: 'Got it!' }]
-    );
-  };
-
-  const stopVolumeListener = () => {
-    VolumeButtonNative.stopListening();
-    volumeSequenceManager.current?.reset();
-    setVolumeListenerActive(false);
-    
-    Alert.alert('Volume Listener Stopped', 'Volume button emergency trigger disabled.');
   };
 
   // Start recording audio (hold to record)
@@ -735,28 +697,6 @@ export default function App() {
                   Current: Medium (recommended){'\n'}
                   Shake your phone firmly to trigger emergency detection.
                 </Text>
-              </View>
-
-              {/* Volume Button Emergency */}
-              <View style={styles.settingSection}>
-                <Text style={styles.sectionTitle}>🎚️ Volume Button Emergency</Text>
-                <Text style={styles.sectionDescription}>
-                  {Platform.OS === 'android'
-                    ? 'Press Volume Up button 3 times within 2 seconds to automatically dispatch medical emergency. Works even with screen off!\n\nNote: Requires custom development build with native modules.'
-                    : 'Volume button detection not available on iOS.'}
-                </Text>
-                
-                {Platform.OS === 'android' && (
-                  <TouchableOpacity
-                    style={[styles.settingToggle, volumeListenerActive && styles.settingToggleActive]}
-                    onPress={volumeListenerActive ? stopVolumeListener : startVolumeListener}
-                  >
-                    <Text style={styles.settingToggleIcon}>{volumeListenerActive ? '🔴' : '⚪'}</Text>
-                    <Text style={styles.settingToggleText}>
-                      {volumeListenerActive ? 'Volume Emergency ON' : 'Enable Volume Emergency'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
               </View>
 
               {/* About */}
