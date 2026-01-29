@@ -12,6 +12,9 @@ import {
   Modal,
   ScrollView,
   Linking,
+  TextInput,
+  KeyboardAvoidingView,
+  FlatList,
 } from 'react-native';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
@@ -21,6 +24,7 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, set, serverTimestamp } from 'firebase/database';
 import VolumeButtonNative from './VolumeButtonNative';
 import VolumeSequenceManager from './VolumeSequenceManager';
+import AIVoiceAssistant from './AIVoiceAssistant';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -57,6 +61,12 @@ export default function App() {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [volumeListenerActive, setVolumeListenerActive] = useState(false);
   const notificationId = useRef(null);
+
+  // AI Voice Assistant states
+  const [voiceAssistantVisible, setVoiceAssistantVisible] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Shake detection variables
   const SHAKE_THRESHOLD = 1.5;
@@ -218,6 +228,55 @@ export default function App() {
     setVolumeListenerActive(false);
     
     Alert.alert('Volume Listener Stopped', 'Volume button emergency trigger disabled.');
+  };
+
+  // AI Voice Assistant handler
+  const handleAIChat = async () => {
+    if (!chatInput.trim()) {
+      Alert.alert('Empty Message', 'Please type your emergency question.');
+      return;
+    }
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    setAiLoading(true);
+
+    // Add user message to chat
+    setChatMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      text: userMessage,
+      sender: 'user',
+      timestamp: new Date().toISOString(),
+    }]);
+
+    try {
+      const response = await AIVoiceAssistant.handleChat(
+        userMessage,
+        (aiResponse) => {
+          // Success callback - add AI response to chat
+          setChatMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
+            text: aiResponse,
+            sender: 'assistant',
+            timestamp: new Date().toISOString(),
+          }]);
+          setAiLoading(false);
+        },
+        (error) => {
+          // Error callback
+          Alert.alert('AI Error', error);
+          setAiLoading(false);
+        }
+      );
+    } catch (error) {
+      console.error('AI Chat error:', error);
+      Alert.alert('Error', 'Failed to get AI response');
+      setAiLoading(false);
+    }
+  };
+
+  const stopAISpeech = () => {
+    AIVoiceAssistant.stopSpeech();
   };
 
   const startBackgroundService = async () => {
@@ -397,6 +456,15 @@ export default function App() {
         )}
       </View>
 
+      {/* AI Voice Assistant Button */}
+      <TouchableOpacity
+        style={styles.aiAssistantButton}
+        onPress={() => setVoiceAssistantVisible(true)}
+      >
+        <Text style={styles.aiAssistantIcon}>🤖</Text>
+        <Text style={styles.aiAssistantText}>AI Emergency Assistant</Text>
+      </TouchableOpacity>
+
       {/* Settings Modal */}
       <Modal
         visible={settingsVisible}
@@ -503,6 +571,99 @@ export default function App() {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* AI Voice Assistant Modal */}
+      <Modal
+        visible={voiceAssistantVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setVoiceAssistantVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.aiModalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.aiHeader}>
+            <View style={styles.aiHeaderTop}>
+              <Text style={styles.aiTitle}>🤖 AI Emergency Assistant</Text>
+              <TouchableOpacity onPress={() => setVoiceAssistantVisible(false)}>
+                <Text style={styles.aiCloseButton}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.aiSubtitle}>Powered by Gemini 2.5 Flash</Text>
+          </View>
+
+          {/* Chat Messages */}
+          <FlatList
+            data={chatMessages}
+            keyExtractor={(item) => item.id}
+            style={styles.chatList}
+            contentContainerStyle={styles.chatListContent}
+            renderItem={({ item }) => (
+              <View
+                style={[
+                  styles.chatBubble,
+                  item.sender === 'user' ? styles.userBubble : styles.aiBubble
+                ]}
+              >
+                <Text style={styles.chatSender}>
+                  {item.sender === 'user' ? '👤 You' : '🤖 AI Assistant'}
+                </Text>
+                <Text style={styles.chatText}>{item.text}</Text>
+                <Text style={styles.chatTimestamp}>
+                  {new Date(item.timestamp).toLocaleTimeString()}
+                </Text>
+              </View>
+            )}
+            ListEmptyComponent={
+              <View style={styles.emptyChat}>
+                <Text style={styles.emptyChatIcon}>🚑</Text>
+                <Text style={styles.emptyChatText}>
+                  Ask me for emergency instructions!
+                </Text>
+                <Text style={styles.emptyChatHint}>
+                  Examples: "What to do for a heart attack?" or "Fire safety tips"
+                </Text>
+              </View>
+            }
+          />
+
+          {/* Loading Indicator */}
+          {aiLoading && (
+            <View style={styles.aiLoadingContainer}>
+              <ActivityIndicator size="small" color="#00D9FF" />
+              <Text style={styles.aiLoadingText}>AI is thinking...</Text>
+            </View>
+          )}
+
+          {/* Input Area */}
+          <View style={styles.aiInputContainer}>
+            <TextInput
+              style={styles.aiInput}
+              placeholder="Ask emergency question..."
+              placeholderTextColor="#64748b"
+              value={chatInput}
+              onChangeText={setChatInput}
+              multiline
+              maxLength={500}
+              editable={!aiLoading}
+            />
+            <TouchableOpacity
+              style={[styles.aiSendButton, aiLoading && styles.aiSendButtonDisabled]}
+              onPress={handleAIChat}
+              disabled={aiLoading}
+            >
+              <Text style={styles.aiSendIcon}>➤</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.aiStopButton}
+              onPress={stopAISpeech}
+            >
+              <Text style={styles.aiStopIcon}>🔇</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -733,5 +894,182 @@ const styles = StyleSheet.create({
     color: '#00D9FF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // AI Voice Assistant Styles
+  aiAssistantButton: {
+    backgroundColor: '#8b5cf6',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    gap: 12,
+    borderWidth: 2,
+    borderColor: '#a78bfa',
+  },
+  aiAssistantIcon: {
+    fontSize: 24,
+  },
+  aiAssistantText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  aiModalContainer: {
+    flex: 1,
+    backgroundColor: '#0A0E27',
+  },
+  aiHeader: {
+    backgroundColor: '#162447',
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: '#8b5cf6',
+  },
+  aiHeaderTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  aiTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#a78bfa',
+  },
+  aiCloseButton: {
+    fontSize: 28,
+    color: '#8B93A7',
+    fontWeight: 'bold',
+  },
+  aiSubtitle: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 4,
+  },
+  chatList: {
+    flex: 1,
+  },
+  chatListContent: {
+    padding: 16,
+    paddingBottom: 80,
+  },
+  chatBubble: {
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 16,
+    maxWidth: '85%',
+  },
+  userBubble: {
+    backgroundColor: '#1e3a8a',
+    alignSelf: 'flex-end',
+    borderBottomRightRadius: 4,
+  },
+  aiBubble: {
+    backgroundColor: '#7c3aed',
+    alignSelf: 'flex-start',
+    borderBottomLeftRadius: 4,
+  },
+  chatSender: {
+    fontSize: 12,
+    color: '#cbd5e1',
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  chatText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    lineHeight: 24,
+    marginBottom: 6,
+  },
+  chatTimestamp: {
+    fontSize: 11,
+    color: '#94a3b8',
+    textAlign: 'right',
+  },
+  emptyChat: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyChatIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyChatText: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  emptyChatHint: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 20,
+  },
+  aiLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#162447',
+    gap: 8,
+  },
+  aiLoadingText: {
+    color: '#a78bfa',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  aiInputContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: '#162447',
+    borderTopWidth: 2,
+    borderTopColor: '#1F4788',
+    gap: 8,
+  },
+  aiInput: {
+    flex: 1,
+    backgroundColor: '#1e293b',
+    color: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    fontSize: 16,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  aiSendButton: {
+    backgroundColor: '#8b5cf6',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiSendButtonDisabled: {
+    backgroundColor: '#4c1d95',
+    opacity: 0.5,
+  },
+  aiSendIcon: {
+    fontSize: 20,
+    color: '#FFFFFF',
+  },
+  aiStopButton: {
+    backgroundColor: '#ef4444',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiStopIcon: {
+    fontSize: 20,
   },
 });
