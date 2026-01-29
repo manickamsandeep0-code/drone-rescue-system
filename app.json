@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "plugins": [
-      "./plugins/withVolumeButton"
+      "react-native-keyevent"
     ],
     "splash": {
       "resizeMode": "contain",
@@ -36,7 +36,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "6d28a478-f6cf-4d26-a7e2-7fbb9e44dad0"
+        "projectId": "ff8a0906-cff1-43c6-b9b3-dfd5fb729813"
       }
     }
   }

@@ -1,14 +1,13 @@
 /**
  * VolumeButtonNative
- * Native module wrapper for volume button detection
+ * Native module wrapper for volume button detection using react-native-keyevent
  */
 
-import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
+import { Platform, DeviceEventEmitter } from 'react-native';
+import ReactNativeKeyEvent from 'react-native-keyevent';
 
-const { VolumeButtonListener } = NativeModules;
-
-let eventEmitter = null;
 let volumeUpListener = null;
+let onVolumeUpCallback = null;
 
 const VolumeButtonNative = {
   /**
@@ -21,27 +20,22 @@ const VolumeButtonNative = {
       return;
     }
 
-    if (!VolumeButtonListener) {
-      console.error('VolumeButtonListener native module not found. Did you rebuild the app?');
-      return;
-    }
-
-    // Initialize event emitter
-    if (!eventEmitter) {
-      eventEmitter = new NativeEventEmitter(VolumeButtonListener);
-    }
+    onVolumeUpCallback = onVolumeUp;
 
     // Remove existing listener
     if (volumeUpListener) {
       volumeUpListener.remove();
     }
 
-    // Add new listener
-    volumeUpListener = eventEmitter.addListener('VolumeUp', onVolumeUp);
+    // Listen for key events
+    volumeUpListener = DeviceEventEmitter.addListener('onKeyDown', (keyEvent) => {
+      // KEYCODE_VOLUME_UP = 24
+      if (keyEvent.keyCode === 24 && onVolumeUpCallback) {
+        onVolumeUpCallback();
+      }
+    });
 
-    // Start native listener
-    VolumeButtonListener.startListening();
-    console.log('✅ Volume button listener started');
+    console.log('✅ Volume button listener started (using react-native-keyevent)');
   },
 
   /**
@@ -55,19 +49,17 @@ const VolumeButtonNative = {
     if (volumeUpListener) {
       volumeUpListener.remove();
       volumeUpListener = null;
+      onVolumeUpCallback = null;
     }
 
-    if (VolumeButtonListener) {
-      VolumeButtonListener.stopListening();
-      console.log('⏹️ Volume button listener stopped');
-    }
+    console.log('⏹️ Volume button listener stopped');
   },
 
   /**
    * Check if native module is available
    */
   isAvailable: () => {
-    return Platform.OS === 'android' && !!VolumeButtonListener;
+    return Platform.OS === 'android' && ReactNativeKeyEvent !== undefined;
   },
 };
 
